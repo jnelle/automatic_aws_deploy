@@ -6,8 +6,23 @@ class VPC:
         self._client = client
         """ :type : pyboto3.ec2 """
 
-    def create_vpc(self, cidr):
+    def create_vpc(self, cidr, vpc_name):
         logger.info("Erstelle VPC...")
+
+        # Erstelle VPC
+        vpc_response = self._client.create_vpc(cidr)
+
+        if "pending" in vpc_response["Vpc"]["State"]:
+            logger.info(f"VPC erstellt: {vpc_response}")
+        else:
+            logger.error(f"Fehler aufgetreten")
+
+        # Tag zu VPC hinzufügen
+        vpc_id = vpc_response["Vpc"]["VpcId"]
+        self._client.add_name_tag(vpc_id, vpc_name)
+
+        logger.info(f"Füge {vpc_name} zu {vpc_id} hinzu")
+
         return self._client.create_vpc(CidrBlock=cidr)
 
     def add_name_tag(self, resource_id, resource_name):
