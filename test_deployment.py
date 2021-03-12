@@ -16,9 +16,9 @@ def main():
     logger.info(boto3.Session().get_credentials().access_key)
     logger.info(boto3.Session().get_credentials().secret_key)
 
-    vpc_id = ec2.create_vpc(config["core"]["cidr_block"], config["core"]["vpc_name_one"])
-    igw_id = vpc.init_igw(vpc_id)
-    vpc.init_subnets(
+    vpc_id = vpc.create_vpc(config["core"]["cidr_block"], config["core"]["vpc_name_one"])
+    igw_id = init_igw(vpc_id)
+    init_subnets(
         vpc_id,
         igw_id,
         config["core"]["public_subnet_cidr"],
@@ -27,7 +27,7 @@ def main():
         config["subnet"]["private_subnet_tag"],
     )
 
-    vpc.init_secgroup(
+    private_subnet_id = init_secgroup(
         config["core"]["public_security_group_name"],
         config["core"]["public_security_group_description"],
         vpc_id,
@@ -55,7 +55,7 @@ def main():
     # ami_id = OS Image
     ami_id = config["core"]["ami_id"]  # Ubuntu Server 20.04 LTS
 
-    vpc.create_priv_key(config["core"]["key_pair_name_private"])
+    create_priv_key(config["core"]["key_pair_name_private"])
 
     # Starte Master EC2 Instanz
     ec2.launch_ec2_instance(
@@ -63,6 +63,8 @@ def main():
         config["core"]["key_pair_name"],
         1,
         1,
+        public_security_group_id,
+        public_subnet_id,
         exec_cmd_master,
         config["core"]["instance_type_master"],
     )

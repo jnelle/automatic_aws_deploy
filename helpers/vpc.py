@@ -4,7 +4,7 @@ from loguru import logger
 class VPC:
     def __init__(self, client):
         self._client = client
-        self._vpc_id = 0
+        self._vpc_id = ""
         """ :type : pyboto3.ec2 """
 
     def create_vpc(self, cidr, vpc_name):
@@ -23,19 +23,13 @@ class VPC:
         self._vpc_id = vpc_response["Vpc"]["VpcId"]
         self._client.add_name_tag(self._vpc_id, vpc_name)
 
-        logger.info(f"Füge {vpc_name} zu {vpc_id} hinzu")
-
-        return self._client.create_vpc(CidrBlock=cidr)
+        logger.info(f"Füge {vpc_name} zu {self._vpc_id} hinzu")
 
     def add_name_tag(self):
         logger.info(f"Füge {self._vpc_name} tag zu {self._vpc_id} hinzu")
         return self._client.create_tags(
             Resources=[self._vpc_id], Tags=[{"Key": "Name", "Value": self._vpc_name}]
         )
-
-    def create_internet_gateway(self):
-        logger.info("Erstelle Internet Gateway...")
-        return self._client.create_internet_gateway()
 
     def attach_igw_to_vpc(self, igw_id):
         logger.info(f"Verknüpfe Internetgateway: {igw_id} zu VPC: {self._vpc_id}")
@@ -69,31 +63,38 @@ class VPC:
         )
 
     def init_igw(self):
-    # Erstelle IGW
+        # Erstelle IGW
         igw_response = self._client.create_internet_gateway()
         igw_id = igw_response["InternetGateway"]["InternetGatewayId"]
         self._client.attach_igw_to_vpc(self._vpc_id, igw_id)
-    
+        return igw_id
+
     def init_subnets(
-    self,
-    igw_id,
-    private_subnet_cidr,
-    public_subnet_tag,
-    public_subnet_cidr,
-    private_subnet_tag,
-):
-    # Erstelle public subnet
-        public_subnet_response = self._client.create_subnet(self._vpc_id, private_subnet_cidr)
+        self,
+        igw_id,
+        private_subnet_cidr,
+        public_subnet_tag,
+        public_subnet_cidr,
+        private_subnet_tag,
+    ):
+        # Erstelle public subnet
+        public_subnet_response = self._client.create_subnet(
+            self._vpc_id, private_subnet_cidr
+        )
 
         public_subnet_id = public_subnet_response["Subnet"]["SubnetId"]
 
-        logger.info(f"Subnet wurde erstellt für VPC: {self._vpc_id} : {public_subnet_response}")
+        logger.info(
+            f"Subnet wurde erstellt für VPC: {self._vpc_id} : {public_subnet_response}"
+        )
 
         # Tagge Public Subnet
         self._client.add_name_tag(public_subnet_id, public_subnet_tag)
 
         # Erstelle public route table
-        public_route_table_response = self._client.create_public_route_table(self._vpc_id)
+        public_route_table_response = self._client.create_public_route_table(
+            self._vpc_id
+        )
 
         rtb_id = public_route_table_response["RouteTable"]["RouteTableId"]
 
@@ -107,13 +108,19 @@ class VPC:
         self._client.allow_auto_assign_ip_addresses_for_subnet(public_subnet_id)
 
         # Erstelle Private Subnet
-        private_subnet_response = self._client.create_subnet(self._vpc_id, public_subnet_cidr)
+        private_subnet_response = self._client.create_subnet(
+            self._vpc_id, private_subnet_cidr
+        )
         private_subnet_id = private_subnet_response["Subnet"]["SubnetId"]
 
-        logger.info(f"Private subnet {private_subnet_id} für VPC {self._vpc_id} wurde erstellt")
+        logger.info(
+            f"Private subnet {private_subnet_id} für VPC {self._vpc_id} wurde erstellt"
+        )
 
         # Tagge private subnet
         self._client.add_name_tag(private_subnet_id, private_subnet_tag)
+
+        return private_subnet_id
 
     def create_priv_key(key_pair_name_private):
         key_pair_private_response = self._client.create_key_pair(key_pair_name_private)
@@ -121,6 +128,3 @@ class VPC:
         f = open("privkey", "w")
         f.write(key_pair_private_response)
         f.close()
-        
-
-
