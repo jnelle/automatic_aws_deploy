@@ -67,3 +67,49 @@ class EC2:
         return self._client.modify_instance_attribute(
             InstanceId=instance_id, DisableApiTermination={"Value": True}
         )
+    
+    def init_secgroup(
+    self,
+    public_security_group_name,
+    public_security_group_description,
+    vpc_id,
+    ip_permissions_inbound_public,
+    ip_permissions_outbound_public,
+    private_security_group_name,
+    private_security_group_description,
+    ip_permissions_inbound_private,
+    ip_permissions_outbound_private,
+    ):
+
+        # Erstelle Security Groups
+        """ PUBLIC """
+        public_security_group_response = self._client.create_security_group(
+            public_security_group_name, public_security_group_description, vpc_id
+        )
+
+        public_security_group_id = public_security_group_response["GroupId"]
+
+        # Füge ein- und ausgehende rules hinzu für Public Security Group
+        self._client.add_inbound_rule_to_sg(public_security_group_id, ip_permissions_inbound_public)
+        self._client.add_outbound_rule_to_sg(
+            public_security_group_id, ip_permissions_outbound_public
+        )
+
+        """ PRIVATE """
+        private_security_group_response = self._client.create_security_group(
+            private_security_group_name, private_security_group_description, vpc_id
+        )
+        private_security_group_id = private_security_group_response["GroupId"]
+
+        # Füge ein- und ausgehende rules hinzu für Private Security Group
+        self._client.add_inbound_rule_to_sg(
+            private_security_group_id, ip_permissions_inbound_private
+        )
+        self._client.add_outbound_rule_to_sg(
+            private_security_group_id, ip_permissions_outbound_private
+        )
+
+        logger.info(
+            f"Ein- und Ausgehende Regeln wurden hinzugefügt für {public_security_group_name}"
+        )
+
