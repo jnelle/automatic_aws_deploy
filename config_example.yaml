@@ -1,0 +1,55 @@
+core:
+  server_location: eu-west-2
+  instance_type_master: 't3.small'
+  instance_type_worker: 't3.micro'
+  vpc_cidr_block: '10.0.0.0/16'
+  vpc_name_one: 'HSW-Server1'
+  ip_permissions_inbound_public:
+    [ 
+      {
+        'IpProtocol': 'tcp',
+        'FromPort': 80,
+        'ToPort': 80,
+        'IpRanges': [{ 'CidrIp': '0.0.0.0/0' }],
+      },
+      {
+        'IpProtocol': 'tcp',
+        'FromPort': 22,
+        'ToPort': 22,
+        'IpRanges': [{ 'CidrIp': '0.0.0.0/0' }],
+      },
+    ]
+  public_subnet_cidr: '10.0.1.0/24'
+  public_subnet_tag: 'HSW-Gruppe3-Public-Subnet'
+  private_subnet_cidr: '10.0.2.0/24'
+  private_subnet_tag: 'HSW-Gruppe3-Private-Subnet'
+  key_pair_name: 'hsw-gruppe3-keypair-2'
+  public_security_group_name: 'HSW-Gruppe3-SecGroup-Master'
+  public_security_group_description: 'Public Security Group für Master Nodes'
+  ip_permissions_outbound_public:
+    [
+      {
+        'IpProtocol': 'All',
+        'FromPort': 'All',
+        'ToPort': 'All',
+        'IpRanges': [{ 'CidrIp': '0.0.0.0/0' }],
+      },
+    ]
+  private_security_group_name: 'HSW-Gruppe3-Private-SecGroup-Worker'
+  private_security_group_description: 'Private Security Group für Worker'
+  ip_permissions_inbound_private:
+    [ 
+      {
+        'IpProtocol': 'tcp',
+        'FromPort': 80,
+        'ToPort': 80,
+        'IpRanges': [{ 'CidrIp': '0.0.0.0/0' }],
+      },
+      {
+        'IpProtocol': 'tcp',
+        'FromPort': 22,
+        'ToPort': 22,
+        'IpRanges': [{ 'CidrIp': '0.0.0.0/0' }],
+      },
+    ]
+  ami_id: 'ami-096cb92bb3580c759'
