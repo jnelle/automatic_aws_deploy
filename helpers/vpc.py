@@ -37,13 +37,26 @@ class VPC:
             InternetGatewayId=igw_id, VpcId=self._vpc_id
         )
 
-    def create_subnet(self, cidr_block):
-        logger.info(f"Erstelle Subnet für VPC: {self._vpc_id} mit CIDR: {cidr_block}")
-        return self._client.create_subnet(VpcId=self._vpc_id, CidrBlock=cidr_block)
+    def init_subnet(self, cidr_block, gateway, tag, route_table_response):
 
-    def create_public_route_table(self):
-        logger.info(f"Erstelle Public Route Table für VPC: {self._vpc_id}")
-        return self._client.create_route_table(VpcId=self._vpc_id)
+        subnet_response = self._client.create_subnet(self._vpc_id, cidr_block)
+
+        logger.info(f"Erstelle Subnet für VPC: {self._vpc_id} mit CIDR: {cidr_block}")
+
+        subnet_id = subnet_response["Subnet"]["SubnetId"]
+
+        # Tagge Public Subnet
+        self._client.add_name_tag(public_subnet_id, tag)
+
+        return subnet_id
+
+    def init_route_table(self):
+        # Erstelle public route table
+        route_table_response = self._client.create_route_table(self._vpc_id)
+        rtb_id = route_table_response["RouteTable"]["RouteTableId"]
+        logger.info(f"Erstelle Route Table für VPC: {self._vpc_id}")
+
+        return rtb_id
 
     def create_igw_route_to_public_route_table(self, rtb_id, igw_id):
         logger.info(f"Füge route für IGW: {igw_id} zu Route Table: {rtb_id} hinzu")
@@ -78,25 +91,6 @@ class VPC:
         private_subnet_tag,
     ):
         # Erstelle public subnet
-        public_subnet_response = self._client.create_subnet(
-            self._vpc_id, private_subnet_cidr
-        )
-
-        public_subnet_id = public_subnet_response["Subnet"]["SubnetId"]
-
-        logger.info(
-            f"Subnet wurde erstellt für VPC: {self._vpc_id} : {public_subnet_response}"
-        )
-
-        # Tagge Public Subnet
-        self._client.add_name_tag(public_subnet_id, public_subnet_tag)
-
-        # Erstelle public route table
-        public_route_table_response = self._client.create_public_route_table(
-            self._vpc_id
-        )
-
-        rtb_id = public_route_table_response["RouteTable"]["RouteTableId"]
 
         # Füge IGW zu public route table hinzu
         self._client.create_igw_route_to_public_route_table(rtb_id, igw_id)

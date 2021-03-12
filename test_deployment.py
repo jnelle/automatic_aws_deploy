@@ -16,8 +16,14 @@ def main():
     logger.info(boto3.Session().get_credentials().access_key)
     logger.info(boto3.Session().get_credentials().secret_key)
 
-    vpc_id = vpc.create_vpc(config["core"]["cidr_block"], config["core"]["vpc_name_one"])
+    vpc_id = vpc.create_vpc(
+        config["core"]["cidr_block"], config["core"]["vpc_name_one"]
+    )
     igw_id = init_igw(vpc_id)
+    # Erstelle public route table
+
+    boto3.create_public_route_table(vpc_id)
+
     init_subnets(
         vpc_id,
         igw_id,
