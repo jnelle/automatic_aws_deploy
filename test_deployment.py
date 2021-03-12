@@ -16,16 +16,43 @@ def main():
     logger.info(boto3.Session().get_credentials().access_key)
     logger.info(boto3.Session().get_credentials().secret_key)
 
-    vpc_id = vpc.create_vpc(
-        config["core"]["cidr_block"], config["core"]["vpc_name_one"]
-    )
-    igw_id = init_igw(vpc_id)
+
+    # Ein VPC erstellen
+    vpc.create_vpc(config["core"]["cidr_block"], config["core"]["vpc_name_one"])
+
+
+    # Public Subnet erstellen
+    
+
+    # Private Subnet erstellen
+
+
     # Erstelle public route table
 
     boto3.create_public_route_table(vpc_id)
 
+    # Internet Gateway im Public Subnet erstellen und öffentliche IP festlegen
+    igw_id = init_igw(vpc)
+
+
+    # NAT Gateway erstellen
+
+
+    # Security Gruppen festlegen & Root Tables festlegen
+
+
+
+    # Leader erstellen & starten
+
+
+
+    # SSH Keys für Zugriff auf Private Worker erstellen
+
+
+
+    # Worker erstellen & starten & SSH Keys hinterlegen
+
     init_subnets(
-        vpc_id,
         igw_id,
         config["core"]["public_subnet_cidr"],
         config["core"]["public_subnet_tag"],
