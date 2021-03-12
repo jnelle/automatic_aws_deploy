@@ -4,6 +4,7 @@ from loguru import logger
 class VPC:
     def __init__(self, client):
         self._client = client
+        self._vpc_id = 0
         """ :type : pyboto3.ec2 """
 
     def create_vpc(self, cidr, vpc_name):
@@ -19,7 +20,7 @@ class VPC:
             logger.error(f"Fehler aufgetreten: {vpc_response}")
 
         # Tag zu VPC hinzufügen
-        self._self._vpc_id = vpc_response["Vpc"]["VpcId"]
+        self._vpc_id = vpc_response["Vpc"]["VpcId"]
         self._client.add_name_tag(self._vpc_id, vpc_name)
 
         logger.info(f"Füge {vpc_name} zu {vpc_id} hinzu")
@@ -71,7 +72,7 @@ class VPC:
     # Erstelle IGW
         igw_response = self._client.create_internet_gateway()
         igw_id = igw_response["InternetGateway"]["InternetGatewayId"]
-        vpc.attach_igw_to_vpc(self._vpc_id, igw_id)
+        self._client.attach_igw_to_vpc(self._vpc_id, igw_id)
     
     def init_subnets(
     self,
@@ -114,10 +115,12 @@ class VPC:
         # Tagge private subnet
         self._client.add_name_tag(private_subnet_id, private_subnet_tag)
 
-        def create_priv_key(key_pair_name_private):
-            key_pair_private_response = ec2.create_key_pair(key_pair_name_private)
-            logger.info(f"Key: {key_pair_private_response}")
-            f = open("privkey", "w")
-            f.write(key_pair_private_response)
-            f.close()
+    def create_priv_key(key_pair_name_private):
+        key_pair_private_response = self._client.create_key_pair(key_pair_name_private)
+        logger.info(f"Key: {key_pair_private_response}")
+        f = open("privkey", "w")
+        f.write(key_pair_private_response)
+        f.close()
+        
+
 

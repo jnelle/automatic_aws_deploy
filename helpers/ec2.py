@@ -41,20 +41,18 @@ class EC2:
         key_name,
         min_count,
         max_count,
-        security_group_id,
-        subnet_id,
         user_data,
         instance_type,
     ):
-        logger.info(f"Starte EC2 Instanz im Subnet {subnet_id}")
+        logger.info(f"Starte EC2 Instanz im Subnet {self._subnet_id}")
         return self._client.run_instances(
             ImageId=image_id,
             KeyName=key_name,
             MinCount=min_count,
             MaxCount=max_count,
             InstanceType=instance_type,
-            SecurityGroupIds=[security_group_id],
-            SubnetId=subnet_id,
+            SecurityGroupIds=[self._security_group_id],
+            SubnetId=self._subnet_id,
             UserData=user_data,
         )
 
@@ -87,12 +85,12 @@ class EC2:
             public_security_group_name, public_security_group_description, vpc_id
         )
 
-        public_security_group_id = public_security_group_response["GroupId"]
+        self._public_security_group_id = public_security_group_response["GroupId"]
 
         # Füge ein- und ausgehende rules hinzu für Public Security Group
-        self._client.add_inbound_rule_to_sg(public_security_group_id, ip_permissions_inbound_public)
+        self._client.add_inbound_rule_to_sg(self._public_security_group_id, ip_permissions_inbound_public)
         self._client.add_outbound_rule_to_sg(
-            public_security_group_id, ip_permissions_outbound_public
+            self._public_security_group_id, ip_permissions_outbound_public
         )
 
         """ PRIVATE """
