@@ -18,7 +18,7 @@ class EC2:
 
     def describe_security_groups(self, tag):
         logger.info("List all Security Groups ...")
-        security_groups =  self._client.describe_security_groups(
+        security_groups = self._client.describe_security_groups(
             Filters=[
                 {
                     "Name": "tag:Name",
@@ -40,17 +40,9 @@ class EC2:
             logger.error(e)
             return False
 
-
-
     def add_inbound_rule_to_sg(self, security_group_id, rules):
         logger.info(f"Add inbound rules for security group: {security_group_id}")
         self._client.authorize_security_group_ingress(
-            GroupId=security_group_id, IpPermissions=rules
-        )
-
-    def add_outbound_rule_to_sg(self, security_group_id, rules):
-        logger.info(f"Add outbound rules for security group: {security_group_id}")
-        self._client.authorize_security_group_egress(
             GroupId=security_group_id, IpPermissions=rules
         )
 
@@ -171,6 +163,27 @@ class EC2:
                 return subnets["Subnets"]
             else:
                 return False
+        except Exception as e:
+            logger.error(e)
+            return False
+
+    def check_instances(self, tag):
+        tmp_list = []
+        instances = self._client.describe_instances(
+            Filters=[
+                {
+                    "Name": "instance.group-id",
+                    "Values": [
+                        tag,
+                    ],
+                },
+            ]
+        )
+        logger.info(instances)
+        try:
+            for i in instances["Reservations"][0]["Instances"]:
+                tmp_list.append(i["PrivateIpAddress"])
+            return tmp_list
         except Exception as e:
             logger.error(e)
             return False

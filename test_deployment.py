@@ -1,5 +1,6 @@
 import boto3
 import paramiko
+import time
 
 from loguru import logger
 from helpers.vpc import VPC
@@ -8,7 +9,8 @@ from helpers.ssh import AWSSSH
 from client_locator import EC2Client, config
 from telethon import TelegramClient
 
-key = paramiko.RSAKey.from_private_key_file(config["core"]["key"])
+pub_key = paramiko.RSAKey.from_private_key_file(config["core"]["pub_key"])
+priv_key = paramiko.RSAKey.from_private_key_file(config["core"]["priv_key"])
 client = paramiko.SSHClient()
 client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 # api_id = config['telegram']['api_id']
@@ -23,12 +25,6 @@ ssh = AWSSSH(client)
 
 def main():
     #    await bot.send_message('billaids', 'Hello!')
-    # ssh.exec_cmd(
-    #     cmd="du -hcs .",
-    #     key=key,
-    #     host=config["core"]["server_ip"],
-    #     user=config["core"]["username"],
-    # )
 
     # Credential check
     logger.info(boto3.Session().get_credentials().access_key)
@@ -96,6 +92,12 @@ def main():
 
         # Allow auto assign IP for public subnet
         vpc.allow_auto_assign_ip_addresses_for_subnet(subnet_id=public_subnet_id)
+        time.sleep(30)
+        vpc.attach_nat_to_subnet(
+            gateway=nat_gateway_id,
+            cidr_block="0.0.0.0/0",
+            rtb_id=private_route_table_id,
+        )
 
     public_security_group = ec2.describe_security_groups(
         config["secgroup"]["public"]["name"]
@@ -125,73 +127,93 @@ def main():
         private_security_group_id = private_security_group["GroupId"]
 
         # Create Tags for security groups
-        ec2._client.create_tags(Resources=[public_security_group_id], Tags=[{'Key': 'Name', 'Value': config["secgroup"]["public"]["name"]}])
-        ec2._client.create_tags(Resources=[private_security_group_id], Tags=[{'Key': 'Name', 'Value': config["secgroup"]["private"]["name"]}])
+        ec2._client.create_tags(
+            Resources=[public_security_group_id],
+            Tags=[{"Key": "Name", "Value": config["secgroup"]["public"]["name"]}],
+        )
+        ec2._client.create_tags(
+            Resources=[private_security_group_id],
+            Tags=[{"Key": "Name", "Value": config["secgroup"]["private"]["name"]}],
+        )
+
         # Add Public IP_permission Rules
         ec2.add_inbound_rule_to_sg(
             public_security_group_id,
             config["secgroup"]["public"]["ip_permissions"]["inbound"],
         )
-        ec2.add_inbound_rule_to_sg(
-            public_security_group_id,
-            config["secgroup"]["public"]["ip_permissions"]["outbound"],
-        )
-
         # Add private IP_permission Rules
         ec2.add_inbound_rule_to_sg(
             private_security_group_id,
             config["secgroup"]["private"]["ip_permissions"]["inbound"],
         )
-        ec2.add_inbound_rule_to_sg(
-            private_security_group_id,
-            config["secgroup"]["private"]["ip_permissions"]["outbound"],
+
+    instance_status = ec2.check_instances(private_security_group_id)
+    if instance_status:
+        logger.info(f"There are already running instances {instance_status}")
+        master_token = ssh.exec_cmd(
+            cmd="docker swarm join-token worker | sed 1,2d | sed 2d",
+            key=pub_key,
+            host=config["core"]["server_ip"],
+            user=config["core"]["username"],
+        )
+        for x in instance_status:
+            ssh.exec_cmd(
+                cmd=master_token,
+                key=priv_key,
+                host=x,
+                user=config["core"]["username"],
+            )
+        ssh.exec_cmd(
+            cmd="wget https://gist.github.com/Billaids/0d7457e059cf614bd72dfdb0f230d95a/raw/7709633b06cd7b9150e7ce5807489de0b0a9033b/gistfile1.txt -O docker-stack.yml && docker stack deploy -c docker-stack.yml swarrmpit",
+            key=pub_key,
+            host=config["core"]["server_ip"],
+            user=config["core"]["username"],
+        )
+    else:
+        # Create and start Master & Worker
+        ami_id = config["core"]["ami_id"]
+        exec_cmd_master = """#!/bin/bash
+                    sudo curl -fsSL https://get.docker.com | bash
+                    sudo usermod -aG docker $USER
+                    docker swarm init
+                    """
+
+        ec2.launch_ec2_instance(
+            image_id=ami_id,
+            key_name=config["secgroup"]["public"]["key_pair_name"],
+            min_count=1,
+            max_count=1,
+            security_group_id=public_security_group_id,
+            subnet_id=public_subnet_id,
+            user_data=exec_cmd_master,
+            instance_type=config["core"]["instance_type_master"],
         )
 
-    # Leader erstellen & starten
-    ami_id = config["core"]["ami_id"]
-    exec_cmd_master = """#!/bin/bash
-                sudo curl -fsSL https://get.docker.com | bash
-                sudo usermod -aG docker $USER
-                docker swarm init
-                """
+        logger.info(f"Start public EC2 Instance with AMI-Image {ami_id}")
 
-    ec2.launch_ec2_instance(
-        image_id=ami_id,
-        key_name=config["secgroup"]["public"]["key_pair_name"],
-        min_count=1,
-        max_count=1,
-        security_group_id=public_security_group_id,
-        subnet_id=public_subnet_id,
-        user_data=exec_cmd_master,
-        instance_type=config["core"]["instance_type_master"],
-    )
+        # SSH Keys für Zugriff auf Private Worker erstellen
 
-    logger.info(f"Start public EC2 Instance with AMI-Image {ami_id}")
+        # Worker erstellen & starten & SSH Keys hinterlegen
 
-    # # SSH Keys für Zugriff auf Private Worker erstellen
+        exec_cmd_worker = """#!/bin/bash
+                    sudo curl -fsSL https://get.docker.com | bash
+                    sudo usermod -aG docker $USER
+                    """
 
-    # # Worker erstellen & starten & SSH Keys hinterlegen
+        ec2.launch_ec2_instance(
+            image_id=ami_id,
+            key_name=config["secgroup"]["private"]["key_pair_name"],
+            min_count=3,
+            max_count=3,
+            security_group_id=private_security_group_id,
+            subnet_id=private_subnet_id,
+            user_data=exec_cmd_worker,
+            instance_type=config["core"]["instance_type_worker"],
+        )
 
-    exec_cmd_worker = """#!/bin/bash
-                  sudo curl -fsSL https://get.docker.com | bash
-                  sudo usermod -aG docker $USER
-                  """
+        logger.info(f"Start private EC2 Instance with AMI-Image {ami_id}")
 
-    ec2.launch_ec2_instance(
-        image_id=ami_id,
-        key_name=config["secgroup"]["public"]["key_pair_name"],
-        min_count=3,
-        max_count=3,
-        security_group_id=private_security_group_id,
-        subnet_id=private_subnet_id,
-        user_data=exec_cmd_worker,
-        instance_type=config["core"]["instance_type_worker"],
-    )
-
-    logger.info(f"Start private EC2 Instance with AMI-Image {ami_id}")
-    # ssh -i privkey ubuntu@ip docker swarm join-token worker | sed 1,2d | sed 2d
-
-    # TODO: Alle IPs von Worker-Nodes herausfinden und Deploy-Command schreiben
+        # time.sleep(180)
 
 
 if __name__ == "__main__":
