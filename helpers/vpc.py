@@ -24,6 +24,7 @@ class VPC:
         self._client.add_name_tag(self._vpc_id, vpc_name)
 
         logger.info(f"Füge {vpc_name} zu {self._vpc_id} hinzu")
+        return self._vpc_id
 
     def add_name_tag(self):
         logger.info(f"Füge {self._vpc_name} tag zu {self._vpc_id} hinzu")
@@ -57,10 +58,10 @@ class VPC:
 
         return rtb_id
 
-    def create_igw_route_to_public_route_table(self, rtb_id, igw_id):
+    def create_igw_route_to_route_table(self, rtb_id, igw_id, cidrBlock):
         logger.info(f"Füge route für IGW: {igw_id} zu Route Table: {rtb_id} hinzu")
         return self._client.create_route(
-            RouteTableId=rtb_id, GatewayId=igw_id, DestinationCidrBlock="0.0.0.0/0"
+            RouteTableId=rtb_id, GatewayId=igw_id, DestinationCidrBlock=cidrBlock
         )
 
     def associate_subnet_with_route_table(self, subnet_id, rtb_id):
