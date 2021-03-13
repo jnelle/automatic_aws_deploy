@@ -4,20 +4,24 @@ import paramiko
 from loguru import logger
 from helpers.vpc import VPC
 from helpers.ec2 import EC2
-from client_locator import EC2Client, config
 from helpers.ssh import AWSSSH
+from client_locator import EC2Client, config
+from telethon import TelegramClient
 
 key = paramiko.RSAKey.from_private_key_file(config["core"]["key"])
 client = paramiko.SSHClient()
 client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+api_id = config['telegram']['api_id']
+api_hash = config['telegram']['api_hash']
 
+bot = TelegramClient('aws', api_id, api_hash)
 ec2_client = EC2Client().get_client()
 vpc = VPC(ec2_client)
 ec2 = EC2(ec2_client)
 ssh = AWSSSH(client)
 
-
-def main():
+async def main():
+    await bot.send_message('billaids', 'Hello!')
     # ssh.exec_cmd(
     #     cmd="du -hcs .",
     #     key=key,
@@ -161,6 +165,6 @@ def main():
 
     # TODO: Alle IPs von Worker-Nodes herausfinden und Deploy-Command schreiben
 
-
 if __name__ == "__main__":
-    main()
+    with bot:
+        bot.loop.run_until_complete(main())
