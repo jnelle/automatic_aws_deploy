@@ -83,7 +83,7 @@ class VPC:
         self._client.attach_igw_to_vpc(self._vpc_id, igw_id)
 
         return igw_id
-
+      
     def create_nat_gateway(self, subnet_id):
 
         # Allocate Elastic IP
