@@ -16,61 +16,47 @@ def main():
     logger.info(boto3.Session().get_credentials().access_key)
     logger.info(boto3.Session().get_credentials().secret_key)
 
+    # Create VPC
+    vpc.create_vpc(cidr=config["vpc"]["vpc_cidr_block"], vpc_name=config["vpc"]["vpc_name"])
 
-    # Ein VPC erstellen
-    vpc.create_vpc(config["core"]["cidr_block"], config["core"]["vpc_name_one"])
+    # Create Public Subnet
+    public_subnet_id = vpc.init_subnet(
+        cidr=config["subnet"]["public_subnet_cidr"], tag=config["subnet"]["public_subnet_tag"]
+    )
 
+    # Create Private Subnet
+    private_subnet_id = vpc.init_subnet(
+        cidr=config["subnet"]["private_subnet_cidr"], tag=config["subnet"]["private_subnet_tag"]
+    )
 
-    # Public Subnet erstellen
-    
+    # Create Internet Gateway and attach to public subnet 
+    igw_id = init_igw()
 
-    # Private Subnet erstellen
+    # Create NAT Gateway
+    nat_gateway_id = vpc.create_nat_gateway()
 
+    # Create public route table
+    public_route_table_id = vpc.init_route_table()
 
-    # Erstelle public route table
+    # Create private route table
+    private_route_table_id = vpc.init_route_table()
 
-    boto3.create_public_route_table(vpc_id)
+    # Attach IGW to public route table
+    vpc.create_igw_route_to_public_route_table(public_route_table_id, igw_id)
 
-    # Internet Gateway im Public Subnet erstellen und öffentliche IP festlegen
-    igw_id = init_igw(vpc)
+    # Attach public subnet with route table
+    vpc.associate_subnet_with_route_table(public_subnet_id, public_route_table_id)
 
+    # Allow auto assign for public subnet
+    vpc.allow_auto_assign_ip_addresses_for_subnet(public_subnet_id)
 
-    # NAT Gateway erstellen
-
-
-    # Security Gruppen festlegen & Root Tables festlegen
-
-
+    # Security Gruppen festlegen & Route Tables festlegen
 
     # Leader erstellen & starten
 
-
-
     # SSH Keys für Zugriff auf Private Worker erstellen
 
-
-
     # Worker erstellen & starten & SSH Keys hinterlegen
-
-    init_subnets(
-        igw_id,
-        config["core"]["public_subnet_cidr"],
-        config["core"]["public_subnet_tag"],
-        config["core"]["private_subnet_cidr"],
-        config["subnet"]["private_subnet_tag"],
-    )
-
-    private_subnet_id = init_secgroup(
-        config["core"]["public_security_group_name"],
-        config["core"]["public_security_group_description"],
-        vpc_id,
-        config["core"]["ip_permissions_inbound_public"],
-        config["core"]["ip_permissions_outbound_public"],
-        config["core"]["private_security_group_name"],
-        config["core"]["private_security_group_description"],
-        config["core"]["ip_permissions_inbound_private"],
-        config["core"]["ip_permissions_outbound_private"],
-    )
 
     exec_cmd_master = """#!/bin/bash
                   sudo curl -fsSL https://get.docker.com | bash

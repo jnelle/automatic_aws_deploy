@@ -11,7 +11,7 @@ class VPC:
         logger.info("Erstelle VPC...")
         self._vpc_name = vpc_name
 
-        # Erstelle VPC
+        # Create VPC
         vpc_response = self._client.create_vpc(cidr)
 
         if "pending" in vpc_response["Vpc"]["State"]:
@@ -19,7 +19,7 @@ class VPC:
         else:
             logger.error(f"Fehler aufgetreten: {vpc_response}")
 
-        # Tag zu VPC hinzufügen
+        # Add Tag to VPC
         self._vpc_id = vpc_response["Vpc"]["VpcId"]
         self._client.add_name_tag(self._vpc_id, vpc_name)
 
@@ -37,21 +37,21 @@ class VPC:
             InternetGatewayId=igw_id, VpcId=self._vpc_id
         )
 
-    def init_subnet(self, cidr_block, gateway, tag, route_table_response):
+    def init_subnet(self, cidr, tag):
 
-        subnet_response = self._client.create_subnet(self._vpc_id, cidr_block)
+        subnet_response = self._client.create_subnet(self._vpc_id, cidr)
 
-        logger.info(f"Erstelle Subnet für VPC: {self._vpc_id} mit CIDR: {cidr_block}")
+        logger.info(f"Erstelle Subnet für VPC: {self._vpc_id} mit CIDR: {cidr}")
 
         subnet_id = subnet_response["Subnet"]["SubnetId"]
 
-        # Tagge Public Subnet
-        self._client.add_name_tag(public_subnet_id, tag)
+        # Tag Subnet
+        self._client.add_name_tag(subnet_id, tag)
 
         return subnet_id
 
     def init_route_table(self):
-        # Erstelle public route table
+
         route_table_response = self._client.create_route_table(self._vpc_id)
         rtb_id = route_table_response["RouteTable"]["RouteTableId"]
         logger.info(f"Erstelle Route Table für VPC: {self._vpc_id}")
@@ -76,49 +76,30 @@ class VPC:
         )
 
     def init_igw(self):
-        # Erstelle IGW
+
+        # Create IGW
         igw_response = self._client.create_internet_gateway()
         igw_id = igw_response["InternetGateway"]["InternetGatewayId"]
         self._client.attach_igw_to_vpc(self._vpc_id, igw_id)
+
         return igw_id
 
-    def init_subnets(
-        self,
-        igw_id,
-        private_subnet_cidr,
-        public_subnet_tag,
-        public_subnet_cidr,
-        private_subnet_tag,
-    ):
-        # Erstelle public subnet
+    def create_nat_gateway(self, subnet_id):
 
-        # Füge IGW zu public route table hinzu
-        self._client.create_igw_route_to_public_route_table(rtb_id, igw_id)
+        # Allocate Elastic IP
+        eip_for_nat_gateway = self._client.allocate_address(Domain="vpc")
+        allocation_id = eip_for_nat_gateway["AllocationId"]
 
-        # Verknüpfe Public Subnet mit Route Table
-        self._client.associate_subnet_with_route_table(public_subnet_id, rtb_id)
-
-        # Erlaube public ip addresse für subnet
-        self._client.allow_auto_assign_ip_addresses_for_subnet(public_subnet_id)
-
-        # Erstelle Private Subnet
-        private_subnet_response = self._client.create_subnet(
-            self._vpc_id, private_subnet_cidr
-        )
-        private_subnet_id = private_subnet_response["Subnet"]["SubnetId"]
-
-        logger.info(
-            f"Private subnet {private_subnet_id} für VPC {self._vpc_id} wurde erstellt"
+        # Create Nat Gateway
+        gateway_id = self._client.create_nat_gateway(
+            SubnetId=subnet_id, AllocationId=allocation_id
         )
 
-        # Tagge private subnet
-        self._client.add_name_tag(private_subnet_id, private_subnet_tag)
+        return gateway_id["NatGateway"]["NatGatewayId"]
 
-        return private_subnet_id
-
-    def create_priv_key(key_pair_name_private):
-        key_pair_private_response = self._client.create_key_pair(key_pair_name_private)
-        logger.info(f"Key: {key_pair_private_response}")
-        f = open("privkey", "w")
-        f.write(key_pair_private_response)
-        f.close()
+    # def create_priv_key(key_pair_name_private):
+    #     key_pair_private_response = self._client.create_key_pair(key_pair_name_private)
+    #     logger.info(f"Key: {key_pair_private_response}")
+    #     f = open("privkey", "w")
+    #     f.write(key_pair_private_response)
+    #     f.close()
