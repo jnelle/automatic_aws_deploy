@@ -4,3 +4,6 @@ config.yaml
 
 # SSH Key
 *.pem
+
+# Telegram sessions
+*.session
