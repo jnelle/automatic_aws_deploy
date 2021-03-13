@@ -1,7 +1,6 @@
 import boto3
 
 from loguru import logger
-from helpers.helpers import *
 from helpers.vpc import VPC
 from helpers.ec2 import EC2
 from client_locator import EC2Client, config
@@ -17,20 +16,24 @@ def main():
     logger.info(boto3.Session().get_credentials().secret_key)
 
     # Create VPC
-    vpc.create_vpc(cidr=config["vpc"]["vpc_cidr_block"], vpc_name=config["vpc"]["vpc_name"])
+    vpc.create_vpc(
+        cidr=config["vpc"]["vpc_cidr_block"], vpc_name=config["vpc"]["vpc_name"]
+    )
 
     # Create Public Subnet
     public_subnet_id = vpc.init_subnet(
-        cidr=config["subnet"]["public_subnet_cidr"], tag=config["subnet"]["public_subnet_tag"]
+        cidr=config["subnet"]["public_subnet_cidr"],
+        tag=config["subnet"]["public_subnet_tag"],
     )
 
     # Create Private Subnet
     private_subnet_id = vpc.init_subnet(
-        cidr=config["subnet"]["private_subnet_cidr"], tag=config["subnet"]["private_subnet_tag"]
+        cidr=config["subnet"]["private_subnet_cidr"],
+        tag=config["subnet"]["private_subnet_tag"],
     )
 
-    # Create Internet Gateway and attach to public subnet 
-    igw_id = init_igw()
+    # Create Internet Gateway and attach to public subnet
+    igw_id = vpc.init_igw()
 
     # Create NAT Gateway
     nat_gateway_id = vpc.create_nat_gateway()
@@ -42,13 +45,17 @@ def main():
     private_route_table_id = vpc.init_route_table()
 
     # Attach IGW to public route table
-    vpc.create_igw_route_to_public_route_table(public_route_table_id, igw_id)
+    vpc.create_igw_route_to_public_route_table(
+        rtb_id=public_route_table_id, igw_id=igw_id
+    )
 
     # Attach public subnet with route table
-    vpc.associate_subnet_with_route_table(public_subnet_id, public_route_table_id)
+    vpc.associate_subnet_with_route_table(
+        subnet_id=public_subnet_id, rtb_id=public_route_table_id
+    )
 
-    # Allow auto assign for public subnet
-    vpc.allow_auto_assign_ip_addresses_for_subnet(public_subnet_id)
+    # Allow auto assign IP for public subnet
+    vpc.allow_auto_assign_ip_addresses_for_subnet(subnet_id=public_subnet_id)
 
     # Security Gruppen festlegen & Route Tables festlegen
 
@@ -73,8 +80,6 @@ def main():
 
     # ami_id = OS Image
     ami_id = config["core"]["ami_id"]  # Ubuntu Server 20.04 LTS
-
-    create_priv_key(config["core"]["key_pair_name_private"])
 
     # Starte Master EC2 Instanz
     ec2.launch_ec2_instance(
