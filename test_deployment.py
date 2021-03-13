@@ -1,16 +1,30 @@
 import boto3
+import paramiko
 
 from loguru import logger
 from helpers.vpc import VPC
 from helpers.ec2 import EC2
 from client_locator import EC2Client, config
+from helpers.ssh import AWSSSH
+
+key = paramiko.RSAKey.from_private_key_file(config["core"]["key"])
+client = paramiko.SSHClient()
+client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
 ec2_client = EC2Client().get_client()
 vpc = VPC(ec2_client)
 ec2 = EC2(ec2_client)
+ssh = AWSSSH(client)
 
 
 def main():
+    # ssh.exec_cmd(
+    #     cmd="du -hcs .",
+    #     key=key,
+    #     host=config["core"]["server_ip"],
+    #     user=config["core"]["username"],
+    # )
+    
     # Credential check
     logger.info(boto3.Session().get_credentials().access_key)
     logger.info(boto3.Session().get_credentials().secret_key)
