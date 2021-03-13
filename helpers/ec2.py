@@ -41,18 +41,20 @@ class EC2:
         key_name,
         min_count,
         max_count,
+        subnet_id,
+        security_group_id,
         user_data,
         instance_type,
     ):
-        logger.info(f"Starte EC2 Instanz im Subnet {self._subnet_id}")
+        logger.info(f"Starte EC2 Instanz im Subnet {subnet_id}")
         return self._client.run_instances(
             ImageId=image_id,
             KeyName=key_name,
             MinCount=min_count,
             MaxCount=max_count,
             InstanceType=instance_type,
-            SecurityGroupIds=[self._security_group_id],
-            SubnetId=self._subnet_id,
+            SecurityGroupIds=[security_group_id],
+            SubnetId=subnet_id,
             UserData=user_data,
         )
 
