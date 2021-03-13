@@ -51,7 +51,6 @@ class VPC:
         return subnet_id
 
     def init_route_table(self):
-
         route_table_response = self._client.create_route_table(self._vpc_id)
         rtb_id = route_table_response["RouteTable"]["RouteTableId"]
         logger.info(f"Erstelle Route Table für VPC: {self._vpc_id}")
