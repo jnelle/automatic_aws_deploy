@@ -16,22 +16,40 @@ class EC2:
             GroupName=group_name, Description=description, VpcId=vpc_id
         )
 
-    def describe_security_groups(self):
+    def describe_security_groups(self, tag):
         logger.info("List all Security Groups ...")
-        return self._client.describe_security_groups()
+        security_groups =  self._client.describe_security_groups(
+            Filters=[
+                {
+                    "Name": "tag:Name",
+                    "Values": [
+                        tag,
+                    ],
+                },
+            ]
+        )
+        logger.info(security_groups)
+        try:
+            if security_groups["SecurityGroups"]:
+                logger.info(security_groups["SecurityGroups"])
+                return security_groups["SecurityGroups"][0]
+            else:
+                logger.info("No vpcs found")
+                return False
+        except Exception as e:
+            logger.error(e)
+            return False
+
+
 
     def add_inbound_rule_to_sg(self, security_group_id, rules):
-        logger.info(
-            f"Add inbound rules for security group: {security_group_id}"
-        )
+        logger.info(f"Add inbound rules for security group: {security_group_id}")
         self._client.authorize_security_group_ingress(
             GroupId=security_group_id, IpPermissions=rules
         )
 
     def add_outbound_rule_to_sg(self, security_group_id, rules):
-        logger.info(
-            f"Add outbound rules for security group: {security_group_id}"
-        )
+        logger.info(f"Add outbound rules for security group: {security_group_id}")
         self._client.authorize_security_group_egress(
             GroupId=security_group_id, IpPermissions=rules
         )
@@ -112,27 +130,46 @@ class EC2:
             private_security_group_id, ip_permissions_outbound_private
         )
 
-        logger.info(
-            f"Add in- and outbound rules for {public_security_group_name}"
-        )
+        logger.info(f"Add in- and outbound rules for {public_security_group_name}")
 
     def check_vpc(self, tag):
         response = self._client.describe_vpcs(
-        Filters=[
-            {
-                'Name': 'tag:Name',
-                'Values': [
-                    tag,
-                ]
-                    },
-                ]
-            )
+            Filters=[
+                {
+                    "Name": "tag:Name",
+                    "Values": [
+                        tag,
+                    ],
+                },
+            ]
+        )
         try:
-            if response['Vpcs']:
-                logger.info(response['Vpcs'][0]['Tags'][0]['Value'])
-                return response['Vpcs']
+            if response["Vpcs"]:
+                logger.info(response["Vpcs"][0]["Tags"][0]["Value"])
+                return response["Vpcs"]
             else:
-                logger.info('No vpcs found')
+                logger.info("No vpcs found")
+                return False
+        except Exception as e:
+            logger.error(e)
+            return False
+
+    def check_subnet(self, tag):
+        subnets = self._client.describe_subnets(
+            Filters=[
+                {
+                    "Name": "tag:Name",
+                    "Values": [
+                        tag,
+                    ],
+                },
+            ]
+        )
+
+        try:
+            if subnets["Subnets"]:
+                return subnets["Subnets"]
+            else:
                 return False
         except Exception as e:
             logger.error(e)

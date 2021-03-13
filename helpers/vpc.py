@@ -9,7 +9,6 @@ class VPC:
     def _set_vpc_id_(self, vpc_name):
         self._vpc_id = vpc_name
 
-
     def create_vpc(self, cidr, vpc_name):
         logger.info("Create VPC...")
         self._vpc_name = vpc_name
@@ -41,7 +40,7 @@ class VPC:
 
         # Tag Subnet
         self._client.create_tags(
-            Resources=[subnet_id], Tags=[{"Key": "Name", "Value":tag}]
+            Resources=[subnet_id], Tags=[{"Key": "Name", "Value": tag}]
         )
 
         return subnet_id
@@ -80,7 +79,6 @@ class VPC:
             InternetGatewayId=igw_id, VpcId=self._vpc_id
         )
         logger.info(f"Attach Internetgateway: {igw_id} to VPC: {self._vpc_id}")
-
 
         return igw_id
 
