@@ -1,3 +1,4 @@
+from logging import NullHandler
 from loguru import logger
 
 
@@ -6,22 +7,22 @@ class EC2:
         self._client = client
 
     def create_key_pair(self, key_name):
-        logger.info(f"Erstelle Key-Paar: {key_name}")
+        logger.info(f"Create key-pair: {key_name}")
         return self._client.create_key_pair(KeyName=key_name)
 
     def create_security_group(self, group_name, description, vpc_id):
-        logger.info(f"Erstelle Security Group: {group_name} für VPC {vpc_id}")
+        logger.info(f"Create security group: {group_name} für VPC {vpc_id}")
         return self._client.create_security_group(
             GroupName=group_name, Description=description, VpcId=vpc_id
         )
 
     def describe_security_groups(self):
-        logger.info("Liste alle Security Groups auf...")
+        logger.info("List all Security Groups ...")
         return self._client.describe_security_groups()
 
     def add_inbound_rule_to_sg(self, security_group_id, rules):
         logger.info(
-            "Füge eingehende Regeln für die Security Group: {security_group_id} hinzu"
+            f"Add inbound rules for security group: {security_group_id}"
         )
         self._client.authorize_security_group_ingress(
             GroupId=security_group_id, IpPermissions=rules
@@ -29,7 +30,7 @@ class EC2:
 
     def add_outbound_rule_to_sg(self, security_group_id, rules):
         logger.info(
-            "Füge eingehende Regeln für die Security Group: {security_group_id} hinzu"
+            f"Add outbound rules for security group: {security_group_id}"
         )
         self._client.authorize_security_group_egress(
             GroupId=security_group_id, IpPermissions=rules
@@ -46,7 +47,7 @@ class EC2:
         user_data,
         instance_type,
     ):
-        logger.info(f"Starte EC2 Instanz im Subnet {subnet_id}")
+        logger.info(f"Start EC2 Instace in subnet {subnet_id}")
         return self._client.run_instances(
             ImageId=image_id,
             KeyName=key_name,
@@ -59,11 +60,11 @@ class EC2:
         )
 
     def describe_ec2_instances(self):
-        logger.info("Liste alle EC2 Instanzen auf...")
+        logger.info("List all EC2 Instances...")
         return self._client.describe_instances()
 
     def modify_ec2_instance(self, instance_id):
-        logger.info(f"Ändere EC2 Instanz {instance_id}")
+        logger.info(f"Modify EC2 Instance {instance_id}")
         return self._client.modify_instance_attribute(
             InstanceId=instance_id, DisableApiTermination={"Value": True}
         )
@@ -112,5 +113,27 @@ class EC2:
         )
 
         logger.info(
-            f"Ein- und Ausgehende Regeln wurden hinzugefügt für {public_security_group_name}"
+            f"Add in- and outbound rules for {public_security_group_name}"
         )
+
+    def check_vpc(self, tag):
+        response = self._client.describe_vpcs(
+        Filters=[
+            {
+                'Name': 'tag:Name',
+                'Values': [
+                    tag,
+                ]
+                    },
+                ]
+            )
+        try:
+            if response['Vpcs']:
+                logger.info(response['Vpcs'][0]['Tags'][0]['Value'])
+                return response['Vpcs']
+            else:
+                logger.info('No vpcs found')
+                return False
+        except Exception as e:
+            logger.error(e)
+            return False
