@@ -1,7 +1,6 @@
 import boto3
 
 from loguru import logger
-from helpers.helpers import *
 from helpers.vpc import VPC
 from helpers.ec2 import EC2
 from client_locator import EC2Client, config
@@ -16,34 +15,55 @@ def main():
     logger.info(boto3.Session().get_credentials().access_key)
     logger.info(boto3.Session().get_credentials().secret_key)
 
-    vpc_id = vpc.create_vpc(
-        config["core"]["cidr_block"], config["core"]["vpc_name_one"]
-    )
-    igw_id = init_igw(vpc_id)
-    # Erstelle public route table
-
-    boto3.create_public_route_table(vpc_id)
-
-    init_subnets(
-        vpc_id,
-        igw_id,
-        config["core"]["public_subnet_cidr"],
-        config["core"]["public_subnet_tag"],
-        config["core"]["private_subnet_cidr"],
-        config["subnet"]["private_subnet_tag"],
+    # Create VPC
+    vpc.create_vpc(
+        cidr=config["vpc"]["vpc_cidr_block"], vpc_name=config["vpc"]["vpc_name"]
     )
 
-    private_subnet_id = init_secgroup(
-        config["core"]["public_security_group_name"],
-        config["core"]["public_security_group_description"],
-        vpc_id,
-        config["core"]["ip_permissions_inbound_public"],
-        config["core"]["ip_permissions_outbound_public"],
-        config["core"]["private_security_group_name"],
-        config["core"]["private_security_group_description"],
-        config["core"]["ip_permissions_inbound_private"],
-        config["core"]["ip_permissions_outbound_private"],
+    # Create Public Subnet
+    public_subnet_id = vpc.init_subnet(
+        cidr=config["subnet"]["public_subnet_cidr"],
+        tag=config["subnet"]["public_subnet_tag"],
     )
+
+    # Create Private Subnet
+    private_subnet_id = vpc.init_subnet(
+        cidr=config["subnet"]["private_subnet_cidr"],
+        tag=config["subnet"]["private_subnet_tag"],
+    )
+
+    # Create Internet Gateway and attach to public subnet
+    igw_id = vpc.init_igw()
+
+    # Create NAT Gateway
+    nat_gateway_id = vpc.create_nat_gateway()
+
+    # Create public route table
+    public_route_table_id = vpc.init_route_table()
+
+    # Create private route table
+    private_route_table_id = vpc.init_route_table()
+
+    # Attach IGW to public route table
+    vpc.create_igw_route_to_public_route_table(
+        rtb_id=public_route_table_id, igw_id=igw_id
+    )
+
+    # Attach public subnet with route table
+    vpc.associate_subnet_with_route_table(
+        subnet_id=public_subnet_id, rtb_id=public_route_table_id
+    )
+
+    # Allow auto assign IP for public subnet
+    vpc.allow_auto_assign_ip_addresses_for_subnet(subnet_id=public_subnet_id)
+
+    # Security Gruppen festlegen & Route Tables festlegen
+
+    # Leader erstellen & starten
+
+    # SSH Keys für Zugriff auf Private Worker erstellen
+
+    # Worker erstellen & starten & SSH Keys hinterlegen
 
     exec_cmd_master = """#!/bin/bash
                   sudo curl -fsSL https://get.docker.com | bash
@@ -60,8 +80,6 @@ def main():
 
     # ami_id = OS Image
     ami_id = config["core"]["ami_id"]  # Ubuntu Server 20.04 LTS
-
-    create_priv_key(config["core"]["key_pair_name_private"])
 
     # Starte Master EC2 Instanz
     ec2.launch_ec2_instance(
