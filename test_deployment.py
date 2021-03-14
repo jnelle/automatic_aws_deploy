@@ -1,22 +1,17 @@
 import paramiko
 import time
-import os
 
 from loguru import logger
 from helpers.vpc import VPC
 from helpers.ec2 import EC2
 from helpers.ssh import AWSSSH
 from client_locator import EC2Client, config
-from telethon import TelegramClient
 
 pub_key = paramiko.RSAKey.from_private_key_file(config["core"]["pub_key"])
 priv_key = paramiko.RSAKey.from_private_key_file(config["core"]["priv_key"])
 client = paramiko.SSHClient()
 client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-# api_id = config['telegram']['api_id']
-# api_hash = config['telegram']['api_hash']
 
-# bot = TelegramClient('aws', api_id, api_hash)
 ec2_client = EC2Client().get_client()
 vpc = VPC(ec2_client)
 ec2 = EC2(ec2_client)
@@ -24,7 +19,6 @@ ssh = AWSSSH(client)
 
 
 def main():
-    #    await bot.send_message('billaids', 'Hello!')
 
     vpc_check = ec2.check_vpc(config["vpc"]["vpc_name"])
     if vpc_check:
@@ -89,7 +83,8 @@ def main():
         vpc.allow_auto_assign_ip_addresses_for_subnet(subnet_id=public_subnet_id)
 
         # Attach nat to private subnet
-        time.sleep(30)
+        time.sleep(15)
+
         vpc.attach_nat_to_subnet(
             gateway=nat_gateway_id,
             cidr_block="0.0.0.0/0",
@@ -97,10 +92,10 @@ def main():
         )
 
     public_security_group = ec2.describe_security_groups(
-        config["secgroup"]["public"]["name"]
+        tag=config["secgroup"]["public"]["name"]
     )
     private_security_group = ec2.describe_security_groups(
-        config["secgroup"]["private"]["name"]
+        tag=config["secgroup"]["private"]["name"]
     )
 
     if public_security_group and private_security_group:
@@ -124,7 +119,8 @@ def main():
 
         # Create Tags for security groups
         ec2.create_tag(
-            tag=config["secgroup"]["public"]["name"], secgp=public_security_group_id
+            tag=config["secgroup"]["public"]["name"], 
+            secgp=public_security_group_id
         )
         ec2.create_tag(
             secgp=private_security_group_id,
@@ -132,10 +128,17 @@ def main():
         )
 
         # Add Public IP_permission Rules
+
         ec2.add_inbound_rule_to_sg(
             public_security_group_id,
             config["secgroup"]["public"]["ip_permissions"]["inbound"],
         )
+        # Allow all inbound traffic from worker nodes
+        ec2.add_inbound_rule_all(
+            security_group_id=public_security_group_id,
+            secname=private_security_group_id,
+        )
+
         # Add private IP_permission Rules
         ec2.add_inbound_rule_to_sg(
             private_security_group_id,
@@ -191,7 +194,7 @@ def main():
         logger.info(f"Start private EC2 Instance with AMI-Image {ami_id}")
 
         # high performant aws nodes need some time to startup
-        time.sleep(60)
+        time.sleep(180)
 
     # ec2.create_priv_key(key_pair_name_private=config["secgroup"]["private"]["key_pair_name"])
 
@@ -218,6 +221,4 @@ def main():
 
 
 if __name__ == "__main__":
-    # with bot:
-    #    bot.loop.run_until_complete(main())
     main()

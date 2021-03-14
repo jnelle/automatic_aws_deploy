@@ -45,7 +45,26 @@ class EC2:
     def add_inbound_rule_to_sg(self, security_group_id, rules):
         logger.info(f"Add inbound rules for security group: {security_group_id}")
         self._client.authorize_security_group_ingress(
-            GroupId=security_group_id, IpPermissions=rules
+            GroupId=security_group_id,
+            IpPermissions=rules,
+        )
+
+    def add_inbound_rule_all(self, security_group_id, secname):
+        self._client.authorize_security_group_ingress(
+            GroupId=security_group_id,
+            IpPermissions=[
+                {
+                    "FromPort": -1,
+                    "ToPort": -1,
+                    "IpProtocol": "-1",
+                    "UserIdGroupPairs": [
+                        {
+                            "Description": "Allow all inbound traffic from worker nodes",
+                            "GroupId": secname,
+                        }
+                    ]
+                }
+            ]
         )
 
     def launch_ec2_instance(
