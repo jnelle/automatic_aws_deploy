@@ -40,7 +40,7 @@ class AWSSSH:
             # https://docs.paramiko.org/en/stable/api/sftp.html#paramiko.sftp_client.SFTPClient.put
             sftp.put(localpath, remotepath, confirm=True)
             time.sleep(1)
-            logger.info(f"Successfully upload file {localpath}")
+            logger.info(f"Successfully uploaded file {localpath}")
             self._ssh.close()
 
         except Exception as e:

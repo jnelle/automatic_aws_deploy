@@ -100,4 +100,3 @@ class VPC:
         response = self._client.create_route(
             GatewayId=gateway, DestinationCidrBlock=cidr_block, RouteTableId=rtb_id
         )
-        logger.info(response)
