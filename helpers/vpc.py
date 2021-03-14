@@ -92,7 +92,6 @@ class VPC:
         gateway_id = self._client.create_nat_gateway(
             SubnetId=subnet_id, AllocationId=allocation_id
         )
-        logger.info(gateway_id)
         logger.info(f'Created Nat Gateway: {gateway_id["NatGateway"]["NatGatewayId"]}')
 
         return gateway_id["NatGateway"]["NatGatewayId"]
@@ -102,10 +101,3 @@ class VPC:
             GatewayId=gateway, DestinationCidrBlock=cidr_block, RouteTableId=rtb_id
         )
         logger.info(response)
-
-    # def create_priv_key(key_pair_name_private):
-    #     key_pair_private_response = self._client.create_key_pair(key_pair_name_private)
-    #     logger.info(f"Key: {key_pair_private_response}")
-    #     f = open("privkey", "w")
-    #     f.write(key_pair_private_response)
-    #     f.close()

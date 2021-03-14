@@ -1,4 +1,3 @@
-from logging import NullHandler
 from loguru import logger
 
 
@@ -6,12 +5,17 @@ class EC2:
     def __init__(self, client):
         self._client = client
 
-    def create_key_pair(self, key_name):
-        logger.info(f"Create key-pair: {key_name}")
-        return self._client.create_key_pair(KeyName=key_name)
+    def create_priv_key(self, key_pair_name_private):
+        key_pair_private_response = self._client.create_key_pair(
+            KeyName=key_pair_name_private
+        )
+        logger.info(f'Key: {key_pair_private_response["KeyMaterial"]}')
+        f = open("privkey.pem", "w")
+        f.write(key_pair_private_response["KeyMaterial"])
+        f.close()
 
     def create_security_group(self, group_name, description, vpc_id):
-        logger.info(f"Create security group: {group_name} für VPC {vpc_id}")
+        logger.info(f"Create security group: {group_name} for VPC {vpc_id}")
         return self._client.create_security_group(
             GroupName=group_name, Description=description, VpcId=vpc_id
         )
@@ -28,13 +32,11 @@ class EC2:
                 },
             ]
         )
-        logger.info(security_groups)
         try:
             if security_groups["SecurityGroups"]:
-                logger.info(security_groups["SecurityGroups"])
                 return security_groups["SecurityGroups"][0]
             else:
-                logger.info("No vpcs found")
+                logger.info("No security groups found, will create one now")
                 return False
         except Exception as e:
             logger.error(e)
@@ -79,51 +81,6 @@ class EC2:
             InstanceId=instance_id, DisableApiTermination={"Value": True}
         )
 
-    def init_secgroup(
-        self,
-        public_security_group_name,
-        public_security_group_description,
-        vpc_id,
-        ip_permissions_inbound_public,
-        ip_permissions_outbound_public,
-        private_security_group_name,
-        private_security_group_description,
-        ip_permissions_inbound_private,
-        ip_permissions_outbound_private,
-    ):
-
-        # Erstelle Security Groups
-        """ PUBLIC """
-        public_security_group_response = self._client.create_security_group(
-            public_security_group_name, public_security_group_description, vpc_id
-        )
-
-        self._public_security_group_id = public_security_group_response["GroupId"]
-
-        # Füge ein- und ausgehende rules hinzu für Public Security Group
-        self._client.add_inbound_rule_to_sg(
-            self._public_security_group_id, ip_permissions_inbound_public
-        )
-        self._client.add_outbound_rule_to_sg(
-            self._public_security_group_id, ip_permissions_outbound_public
-        )
-
-        """ PRIVATE """
-        private_security_group_response = self._client.create_security_group(
-            private_security_group_name, private_security_group_description, vpc_id
-        )
-        private_security_group_id = private_security_group_response["GroupId"]
-
-        # Füge ein- und ausgehende rules hinzu für Private Security Group
-        self._client.add_inbound_rule_to_sg(
-            private_security_group_id, ip_permissions_inbound_private
-        )
-        self._client.add_outbound_rule_to_sg(
-            private_security_group_id, ip_permissions_outbound_private
-        )
-
-        logger.info(f"Add in- and outbound rules for {public_security_group_name}")
-
     def check_vpc(self, tag):
         response = self._client.describe_vpcs(
             Filters=[
@@ -137,10 +94,12 @@ class EC2:
         )
         try:
             if response["Vpcs"]:
-                logger.info(response["Vpcs"][0]["Tags"][0]["Value"])
+                logger.info(
+                    f'VPC {response["Vpcs"][0]["Tags"][0]["Value"]} is available'
+                )
                 return response["Vpcs"]
             else:
-                logger.info("No vpcs found")
+                logger.info("No vpcs found, will create one now")
                 return False
         except Exception as e:
             logger.error(e)
@@ -179,11 +138,37 @@ class EC2:
                 },
             ]
         )
-        logger.info(instances)
         try:
             for i in instances["Reservations"][0]["Instances"]:
                 tmp_list.append(i["PrivateIpAddress"])
             return tmp_list
-        except Exception as e:
-            logger.error(e)
+        except Exception:
+            logger.error("There is no running instance, will start one now")
             return False
+
+    def check_instances_master(self, tag):
+        tmp_list = []
+        instances = self._client.describe_instances(
+            Filters=[
+                {
+                    "Name": "instance.group-id",
+                    "Values": [
+                        tag,
+                    ],
+                },
+            ]
+        )
+        try:
+            for i in instances["Reservations"][0]["Instances"]:
+                tmp_list.append(i["PublicIpAddress"])
+            return tmp_list
+        except Exception:
+            logger.error("There is no running instance, will start one now")
+            return False
+
+    def create_tag(self, tag, secgp):
+        # Create Tags for security groups with security group id
+        self._client.create_tags(
+            Resources=[secgp],
+            Tags=[{"Key": "Name", "Value": tag}],
+        )
