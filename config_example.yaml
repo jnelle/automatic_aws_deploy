@@ -1,23 +1,74 @@
 core:
-  server_location:
-  instance_type_master:
-  instance_type_worker:
-  ami_id:
+  server_location: 'eu-west-2'
+  instance_type_master: 't3.small'
+  instance_type_worker: 't3.micro'
+  ami_id: 'ami-096cb92bb3580c759'
+  username: 'ubuntu'
+  pub_key: 'hsw-gruppe3-keypair-2.pem'
+  priv_key: 'hsw-gruppe3-keypair-2-priv.pem'
+  nat_gateway_name: 'skript-hsw-gruppe3-nat'
+  local_path : '/home/jimbo/automatic_aws_deploy/hsw-gruppe3-keypair-2-priv.pem'
+  remote_path: '/home/ubuntu/privkey'
 vpc:
-  vpc_cidr_block:
-  vpc_name:
-  ip_permissions_inbound_public:
+  vpc_cidr_block: '10.0.0.0/16'
+  vpc_name: 'HSW-Server1'
 subnet:
-  public_subnet_cidr:
-  public_subnet_tag:
-  private_subnet_cidr:
-  private_subnet_tag: 
+  public:
+    cidr: '10.0.1.0/24'
+    tag: 'HSW-Gruppe3-Public-Subnet'
+  private:
+    cidr: '10.0.2.0/24'
+    tag: 'HSW-Gruppe3-Private-Subnet'
 secgroup:
-  key_pair_name: 
-  public_security_group_name:
-  public_security_group_description:
-  ip_permissions_outbound_public:
-  ip_permissions_inbound_private:
-  private_security_group_name: 
-  private_security_group_description: 
-  key_pair_name_private: 
+  public:
+    key_pair_name: 'hsw-gruppe3-keypair-2'
+    name: 'HSW-Gruppe3-SecGroup-Master'
+    description: 'Public Security Group fuer Master Nodes'
+    ip_permissions:
+      inbound:
+        [ 
+          {
+            'IpProtocol': 'tcp',
+            'FromPort': 80,
+            'ToPort': 80,
+            'IpRanges': [{ 'CidrIp': '0.0.0.0/0' }],
+          },
+          {
+            'IpProtocol': 'tcp',
+            'FromPort': 443,
+            'ToPort': 443,
+            'IpRanges': [{ 'CidrIp': '0.0.0.0/0' }],
+          },
+          {
+            'IpProtocol': 'tcp',
+            'FromPort': 22,
+            'ToPort': 22,
+            'IpRanges': [{ 'CidrIp': '0.0.0.0/0' }],
+          },
+          {
+            'IpProtocol': 'tcp',
+            'FromPort': 5000,
+            'ToPort': 5001,
+            'IpRanges': [{ 'CidrIp': '0.0.0.0/0' }, { 'CidrIp': '10.0.2.0/24' }],
+          },
+          {
+            'IpProtocol': 'tcp',
+            'FromPort': 6379,
+            'ToPort': 6379,
+            'IpRanges': [{ 'CidrIp': '10.0.2.0/24' }],
+          },
+        ]
+  private:
+    ip_permissions:
+      inbound:
+        [ ### TODO: Eintragen der hinterlegten Rules aus AWS!!!
+          {
+            'IpProtocol': '-1',
+            'FromPort': -1,
+            'ToPort': -1,
+            'IpRanges': [{ 'CidrIp': '0.0.0.0/0' }],
+          }
+        ]
+    name: 'HSW-Gruppe3-Private-SecGroup-Worker'
+    description: 'Private Security Group fuer Worker'
+    key_pair_name: 'hsw-gruppe3-keypair-2-priv'
